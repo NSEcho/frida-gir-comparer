@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 )
 
 const (
@@ -19,52 +18,62 @@ const (
 
 var releases = map[string][]string{
 	"macos": []string{"arm64", "arm64e", "x86_64"},
+	"linux": []string{"arm64", "armhf", "x86", "x86_64"},
 }
 
-func DownloadAll(version string) {
-	client := newClient(60)
-
-	count := 0
-	for _, arches := range releases {
-		count += len(arches)
+func Count() int {
+	total := 0
+	for _, arch := range releases {
+		total += len(arch)
 	}
+	return total
+}
 
+// DownloadAll downloads all the releases defined
+func DownloadAll(version, outdir string) <-chan string {
+	ch := make(chan string)
+	go startDownload(version, outdir, ch)
+	return ch
+}
+
+func startDownload(version, outdir string, ch chan<- string) {
 	var wg sync.WaitGroup
-	wg.Add(count)
+	wg.Add(Count())
 
 	for kit, arches := range releases {
 		for _, arch := range arches {
-			go download(version, kit, arch, client, &wg)
+			go download(version, kit, arch, outdir, &wg, ch)
 		}
 	}
 
 	wg.Wait()
+	close(ch)
 }
 
-func Download(version, kit, arch string) error {
-	client := newClient(60)
-	return downloadItem(version, kit, arch, client)
+// Download downloads single core devkit for host and arch
+func Download(version, kit, arch, outdir string) error {
+	ch := make(chan string)
+	go func() {
+		<-ch
+	}()
+	return downloadItem(version, kit, arch, outdir, ch)
 }
 
-func download(version, kit, arch string, client *http.Client, wg *sync.WaitGroup) {
+func download(version, kit, arch, outdir string, wg *sync.WaitGroup, ch chan<- string) {
 	defer wg.Done()
-	client = newClient(60)
-	if err := downloadItem(version, kit, arch, client); err != nil {
-		panic(err)
-	}
+	downloadItem(version, kit, arch, outdir, ch)
 }
 
-func downloadItem(version, host, arch string, client *http.Client) error {
-	fmt.Printf("[*] Downloading: frida-core %s for %s %s\n",
-		version, host, arch)
+func downloadItem(version, host, arch, outdir string, ch chan<- string) error {
+	corePath := fmt.Sprintf("frida-core-%s-%s-%s", version, host, arch)
+	dp := filepath.Join(outdir, corePath)
+	fmt.Printf("[*] Downloading: frida-core %s for %s %s to %s/\n",
+		version, host, arch, dp)
 	frida := fmt.Sprintf(releaseURL, version, version, host, arch)
-	resp, err := client.Get(frida)
+	resp, err := http.Get(frida)
 	if err != nil {
 		return err
 	}
-
-	corePath := fmt.Sprintf("frida-core-%s-%s", host, arch)
-	fmt.Printf("[*] Destination dir: %s\n", corePath)
 
 	r, err := xz.NewReader(resp.Body)
 	if err != nil {
@@ -75,6 +84,7 @@ func downloadItem(version, host, arch string, client *http.Client) error {
 	buf := new(bytes.Buffer)
 	if _, err := io.Copy(buf, r); err != nil {
 		resp.Body.Close()
+		ch <- ""
 		return err
 	}
 
@@ -87,33 +97,33 @@ func downloadItem(version, host, arch string, client *http.Client) error {
 			break
 		}
 		if err != nil {
+			ch <- ""
 			return err
 		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			dirPath := filepath.Join(corePath, hdr.Name)
+			dirPath := filepath.Join(outdir, corePath, hdr.Name)
 			if err := os.MkdirAll(dirPath, 0777); err != nil {
+				ch <- ""
 				return err
 			}
 		case tar.TypeReg:
-			filePath := filepath.Join(corePath, hdr.Name)
+			filePath := filepath.Join(outdir, corePath, hdr.Name)
 			newFile, err := os.Create(filePath)
 			if err != nil {
+				ch <- ""
 				return err
 			}
 			if _, err := io.Copy(newFile, tr); err != nil {
 				newFile.Close()
+				ch <- ""
 				return err
 			}
 			newFile.Close()
 		}
 	}
 
+	finished := fmt.Sprintf("frida-core-%s-%s-%s", version, host, arch)
+	ch <- finished
 	return nil
-}
-
-func newClient(timeout int) *http.Client {
-	return &http.Client{
-		Timeout: time.Duration(timeout) * time.Second,
-	}
 }
