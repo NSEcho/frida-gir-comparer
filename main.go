@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/lateralusd/fgcomparer/helper"
+	"github.com/nsecho/fgcomparer/comparer"
+	"github.com/nsecho/fgcomparer/helper"
+	"github.com/nsecho/fgcomparer/parser"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -25,6 +28,25 @@ func main() {
 	go download(newVersion, outdir, &wg)
 
 	wg.Wait()
+
+	oldKitName := fmt.Sprintf("frida-core-%s-macos-arm64", oldVersion)
+	newKitName := fmt.Sprintf("frida-core-%s-macos-arm64", newVersion)
+
+	oldGir := filepath.Join(outdir, oldKitName, "frida-core.gir")
+	newGir := filepath.Join(outdir, newKitName, "frida-core.gir")
+
+	oldP, err := parser.NewParser(oldGir)
+	if err != nil {
+		panic(err)
+	}
+
+	newP, err := parser.NewParser(newGir)
+	if err != nil {
+		panic(err)
+	}
+
+	c := comparer.NewComparer(oldP, newP)
+	c.Compare()
 }
 
 func download(version, outdir string, wg *sync.WaitGroup) {
@@ -34,9 +56,9 @@ func download(version, outdir string, wg *sync.WaitGroup) {
 		if dl != "" {
 			total += 1
 		}
-		fmt.Printf("%s finished download; parsing gir file\n", dl)
+		fmt.Printf("[*] %s finished download; parsing gir file\n", dl)
 	}
 	if total != helper.Count() {
-		fmt.Fprintf(os.Stderr, "Did not download all kits for %s\n", version)
+		fmt.Fprintf(os.Stderr, "[-] Did not download all kits for %s\n", version)
 	}
 }

@@ -16,17 +16,11 @@ const (
 	releaseURL = "https://github.com/frida/frida/releases/download/%s/frida-core-devkit-%s-%s-%s.tar.xz"
 )
 
-var releases = map[string][]string{
-	"macos": []string{"arm64", "arm64e", "x86_64"},
-	"linux": []string{"arm64", "armhf", "x86", "x86_64"},
-}
+var kit = "macos"
+var arch = "arm64"
 
 func Count() int {
-	total := 0
-	for _, arch := range releases {
-		total += len(arch)
-	}
-	return total
+	return 1
 }
 
 // DownloadAll downloads all the releases defined
@@ -39,13 +33,7 @@ func DownloadAll(version, outdir string) <-chan string {
 func startDownload(version, outdir string, ch chan<- string) {
 	var wg sync.WaitGroup
 	wg.Add(Count())
-
-	for kit, arches := range releases {
-		for _, arch := range arches {
-			go download(version, kit, arch, outdir, &wg, ch)
-		}
-	}
-
+	go download(version, kit, arch, outdir, &wg, ch)
 	wg.Wait()
 	close(ch)
 }

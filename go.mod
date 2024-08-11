@@ -1,5 +1,5 @@
-module github.com/lateralusd/fgcomparer
+module github.com/nsecho/fgcomparer
 
-go 1.19
+go 1.21.3
 
-require github.com/ulikunitz/xz v0.5.11 // indirect
+require github.com/ulikunitz/xz v0.5.12
