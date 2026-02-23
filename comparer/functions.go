@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-func classCount(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func classCount(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
 	olen := len(oldP.Classes())
 	nlen := len(newP.Classes())
@@ -15,9 +15,8 @@ func classCount(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	}
 }
 
-func addedClasses(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func addedClasses(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
-	msg := ""
 	var found bool
 	for _, newCls := range newP.Classes() {
 		found = false
@@ -28,15 +27,13 @@ func addedClasses(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 			}
 		}
 		if !found {
-			msg += fmt.Sprintf("\n\t%s", newCls.Name)
+			src.NewClasses = append(src.NewClasses, newCls)
 		}
 	}
-	logMessage(name, msg)
 }
 
-func deletedClasses(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func deletedClasses(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
-	msg := ""
 	var found bool
 	for _, oldCls := range oldP.Classes() {
 		found = false
@@ -47,13 +44,12 @@ func deletedClasses(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) 
 			}
 		}
 		if !found {
-			msg += fmt.Sprintf("\n\t%s", oldCls.Name)
+			src.RemovedClasses = append(src.RemovedClasses, oldCls.Name)
 		}
 	}
-	logMessage(name, msg)
 }
 
-func functionCount(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func functionCount(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
 	olen := len(oldP.Functions())
 	nlen := len(newP.Functions())
@@ -62,7 +58,7 @@ func functionCount(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	}
 }
 
-func addedFunctions(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func addedFunctions(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
 	msg := ""
 	var found bool
@@ -81,7 +77,7 @@ func addedFunctions(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) 
 	logMessage(name, msg)
 }
 
-func deletedFunctions(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func deletedFunctions(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
 	msg := ""
 	var found bool
@@ -100,7 +96,7 @@ func deletedFunctions(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup
 	logMessage(name, msg)
 }
 
-func enumerationCount(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func enumerationCount(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
 	olen := len(oldP.Enumerations())
 	nlen := len(newP.Enumerations())
@@ -109,9 +105,8 @@ func enumerationCount(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup
 	}
 }
 
-func addedEnumerations(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func addedEnumerations(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
-	msg := ""
 	var found bool
 	for _, newEn := range newP.Enumerations() {
 		found = false
@@ -122,15 +117,13 @@ func addedEnumerations(name string, oldP, newP *parser.Parser, wg *sync.WaitGrou
 			}
 		}
 		if !found {
-			msg += fmt.Sprintf("\n\t%s", newEn.Name)
+			src.NewEnumerations = append(src.NewEnumerations, newEn)
 		}
 	}
-	logMessage(name, msg)
 }
 
-func deletedEnumerations(name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
+func deletedEnumerations(src *Source, name string, oldP, newP *parser.Parser, wg *sync.WaitGroup) {
 	defer wg.Done()
-	msg := ""
 	var found bool
 	for _, oldEn := range oldP.Enumerations() {
 		found = false
@@ -141,8 +134,7 @@ func deletedEnumerations(name string, oldP, newP *parser.Parser, wg *sync.WaitGr
 			}
 		}
 		if !found {
-			msg += fmt.Sprintf("\n\t%s", oldEn.Name)
+			src.RemovedEnumerations = append(src.RemovedEnumerations, oldEn.Name)
 		}
 	}
-	logMessage(name, msg)
 }

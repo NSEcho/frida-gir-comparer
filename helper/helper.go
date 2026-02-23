@@ -5,10 +5,13 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/ulikunitz/xz"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -114,4 +117,19 @@ func downloadItem(version, host, arch, outdir string, ch chan<- string) error {
 	finished := fmt.Sprintf("frida-core-%s-%s-%s", version, host, arch)
 	ch <- finished
 	return nil
+}
+
+func ConvertToCamelCase(s string) string {
+	words := strings.Split(s, "_")
+	ccase := ""
+	if len(words) > 0 {
+		for _, word := range words {
+			if word == "FRIDA" {
+				continue
+			}
+			ccase += cases.Title(language.AmericanEnglish, cases.NoLower).String(strings.ToLower(word))
+		}
+		return ccase
+	}
+	return s
 }

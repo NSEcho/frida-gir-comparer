@@ -10,6 +10,10 @@ import (
 	"sync"
 )
 
+const (
+	kitName = "frida-core-%s-macos-arm64"
+)
+
 func main() {
 	if len(os.Args) != 4 {
 		fmt.Fprintf(os.Stderr, "Usage:   %s oldVersion newVersion outdir/\n", os.Args[0])
@@ -22,15 +26,10 @@ func main() {
 	outdir := os.Args[3]
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	downloadKits(oldVersion, newVersion, outdir, &wg)
 
-	go download(oldVersion, outdir, &wg)
-	go download(newVersion, outdir, &wg)
-
-	wg.Wait()
-
-	oldKitName := fmt.Sprintf("frida-core-%s-macos-arm64", oldVersion)
-	newKitName := fmt.Sprintf("frida-core-%s-macos-arm64", newVersion)
+	oldKitName := fmt.Sprintf(kitName, oldVersion)
+	newKitName := fmt.Sprintf(kitName, newVersion)
 
 	oldGir := filepath.Join(outdir, oldKitName, "frida-core.gir")
 	newGir := filepath.Join(outdir, newKitName, "frida-core.gir")
@@ -47,6 +46,28 @@ func main() {
 
 	c := comparer.NewComparer(oldP, newP)
 	c.Compare()
+	fmt.Println(c.String())
+}
+
+func downloadKits(oldVersion, newVersion, outdir string, wg *sync.WaitGroup) {
+	oldKitName := filepath.Join(outdir, fmt.Sprintf(kitName, oldVersion), "libfrida-core.a")
+	newKitName := filepath.Join(outdir, fmt.Sprintf(kitName, newVersion), "libfrida-core.a")
+
+	if _, err := os.Stat(oldKitName); os.IsNotExist(err) {
+		wg.Add(1)
+		go download(oldVersion, outdir, wg)
+	} else {
+		fmt.Printf("[*] Found devkit for %s version\n", oldVersion)
+	}
+
+	if _, err := os.Stat(newKitName); os.IsNotExist(err) {
+		wg.Add(1)
+		go download(newVersion, outdir, wg)
+	} else {
+		fmt.Printf("[*] Found devkit for %s version\n", newVersion)
+	}
+
+	wg.Wait()
 }
 
 func download(version, outdir string, wg *sync.WaitGroup) {
